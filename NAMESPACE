@@ -1,0 +1,11 @@
+exportPattern("^[[:alpha:]]+")
+importFrom("graphics", "plot")
+importFrom("stats", "model.frame", "model.matrix", "model.response",
+"pnorm", "qnorm", "quantile", "rgamma", "rmultinom",
+"rnorm", "rpois", "runif", "sd")
+import("HI","survival")
+S3method(print, ICBayes)
+S3method(plot, ICBayes)
+S3method(ICBayes, default)
+S3method(ICBayes, formula)
+
