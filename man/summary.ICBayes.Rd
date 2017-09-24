@@ -1,12 +1,14 @@
-\name{print.ICBayes}
-\alias{print.ICBayes}
-\title{print method for ICBayes object}
-\description{Print output from function \code{\link{ICBayes}} }
-\usage{\method{print}{ICBayes}(x, ...)}
+\name{summary.ICBayes}
+\alias{summary.ICBayes}
+\title{summary method for class ICBayes}
+\description{present output from function \code{\link{ICBayes}}}
+\usage{\method{summary}{ICBayes}(object, ...)}
+
 \arguments{
-  \item{x}{an object of class \code{"ICBayes"}, i.e., a fitted model}
-  \item{...}{other arguments if any}
+  \item{object}{class ICBayes object}
+  \item{\dots}{other arguments if any}
 }
+
 \value{
 an object of class \code{ICBayes} containing the following elements
  \item{coef}{a named vector of coefficient estimates}

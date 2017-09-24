@@ -11,9 +11,12 @@ a_eta,
 b_eta,
 knots,
 grids,
-niter){
+niter,
+seed){
 
-#library(HI)
+# library(HI) # remove as specified in Depend
+# library(coda) # remove as specified in Depend
+
 
 Ispline<-function(x,order,knots){
 # M Spline function with order k=order+1. or I spline with order
@@ -89,6 +92,7 @@ ind_fun <- function(x,pb,xx,zz,lam, ksi, sig0) (x>-coef_range)*(x<coef_range)
 
 
  ## obtain data
+   set.seed(seed)
    T_obs=matrix(ifelse(status==0,L,R),ncol=1)
    status=matrix(status,ncol=1)
    n=nrow(T_obs)
@@ -103,8 +107,8 @@ ind_fun <- function(x,pb,xx,zz,lam, ksi, sig0) (x>-coef_range)*(x<coef_range)
 
    ## generate basis functions
    bis=Ispline(t(T_obs),order,knots) # used as basis functions in order to do parameter estimation
-   bgs=Ispline(grids,order,knots)
-   
+   bgs=Ispline(grids,order,knots)  
+
    ## initial value
    eta=rgamma(1,a_eta,rate=b_eta)
    gamcoef=matrix(rgamma(k, 1, 1),ncol=k)
@@ -162,22 +166,22 @@ ind_fun <- function(x,pb,xx,zz,lam, ksi, sig0) (x>-coef_range)*(x<coef_range)
       pareta[iter]=eta
       parsurv0[iter,]=1/(1+gamcoef%*%bgs)
       if (is.null(x_user)){parsurv[iter,]=parsurv0[iter,]} else {
-A<-matrix(x_user,byrow=TRUE,ncol=p)
-B<-exp(A%*%beta)
-for (g in 1:G){
-parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=parsurv0[iter,]/(parsurv0[iter,]+(1-parsurv0[iter,])*B[g,1])}
-}
-
-#calculate finv
-C<-Lambdat*exp(xcov%*%beta)
-Ft<-C/(1+C)
-f_iter<-(Ft^(status==1))*((1-Ft)^(status==0))  # n*1, individual likelihood for each iteration
-finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
+      A<-matrix(x_user,byrow=TRUE,ncol=p)
+      B<-exp(A%*%beta)
+      for (g in 1:G){
+      parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=parsurv0[iter,]/(parsurv0[iter,]+(1-parsurv0[iter,])*B[g,1])}
+      }
+ 
+      #calculate finv
+      C<-Lambdat*exp(xcov%*%beta)
+      Ft<-C/(1+C)
+      f_iter<-(Ft^(status==1))*((1-Ft)^(status==0))  # n*1, individual likelihood for each iteration
+      finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
    
-parfinv[iter,]=finv_iter
-
+      parfinv[iter,]=finv_iter
+  
       iter=iter+1
-
+      #cat("[loop iter beta]=",loop,iter,beta,"\n")
    } # end iteration
 
    est<-list(parbeta=parbeta,

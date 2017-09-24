@@ -5,7 +5,7 @@
 and survival function at user-specified covariate values.}
 \usage{
 case2ph(L, R, status, xcov, x_user, order, sig0, coef_range, 
-	a_eta, b_eta, knots, grids, niter)
+	a_eta, b_eta, knots, grids, niter, seed)
 }
 \arguments{
   \item{L}{a numeric vector of left timepoints of observed time intervals.}
@@ -21,6 +21,7 @@ case2ph(L, R, status, xcov, x_user, order, sig0, coef_range,
   \item{knots}{a sequence of points to define I-splines.}
   \item{grids}{a sequence of points where baseline survival function is to be estimated.}
   \item{niter}{total number of iterations of MCMC chains.}
+  \item{seed}{a user specified random seed, default is NULL.}
 }
 \details{
 The baseline cumulative hazard is modeled by a linear combination of I-splines: 
@@ -34,6 +35,10 @@ in \code{\link[HI]{arms}}.
 a list containing the following elements:
  \item{parbeta}{a \code{niter} by \code{p} matrix of MCMC draws of \code{beta_r}, r=1, ..., p. }
  \item{parsurv0}{a \code{niter} by \code{length(grids)} matrix, each row contains the baseline survival at \code{grids} from one iteration.}
+ \item{parsurv}{a \code{niter} by \code{length(grids)*G} matrix, each row contains the survival at \code{grids} from one iteration. 
+	G is the number of sets of user-specified covariate values.}
+ \item{parfinv}{a \code{niter} by n matrix, each row contains the inverse PDF of observed interval-censored data from one iteration. 
+	This is used for computing LPML later.} 
  \item{grids}{a sequence of points where baseline survival is estimated.}
 }
 \references{

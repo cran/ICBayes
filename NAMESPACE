@@ -3,8 +3,10 @@ importFrom("graphics", "plot")
 importFrom("stats", "model.frame", "model.matrix", "model.response",
 "pnorm", "qnorm", "quantile", "rgamma", "rmultinom",
 "rnorm", "rpois", "runif", "sd")
-import("HI","survival")
-S3method(print, ICBayes)
+import("HI","survival","coda")
+S3method(coef, ICBayes)
+S3method(logLik, ICBayes)
+S3method(summary, ICBayes)
 S3method(plot, ICBayes)
 S3method(ICBayes, default)
 S3method(ICBayes, formula)

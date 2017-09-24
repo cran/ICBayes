@@ -10,8 +10,8 @@ ICBayes(L, ...)
 
 \method{ICBayes}{default}(L, R, model, status, xcov, x_user=NULL, order=2, 
 sig0=10, coef_range=5, v0=0.1, a_eta=1, b_eta=1, 
-knots=NULL, grids=NULL, conf.int=0.95, plot_S=TRUE, chain.save=FALSE, 
-dd1, niter=11000, burnin=1000, thin=1, ...)
+knots=NULL, grids=NULL, conf.int=0.95,
+niter=5000, burnin=1000, thin=1, seed=NULL, ...)
 \method{ICBayes}{formula}(formula, data, ...)
 }
 \arguments{
@@ -35,9 +35,7 @@ dd1, niter=11000, burnin=1000, thin=1, ...)
   \item{niter}{total number of iterations of MCMC chains. Default is 11000.}
   \item{burnin}{number of iterations to discard at the beginning of an MCMC run. Default is 1000.}
   \item{thin}{specify thinning of MCMC draws. Default is 1.}
-  \item{plot_S}{logical; if TRUE (default), survival at grids are saved for plot.}
-  \item{chain.save}{logical, default is FALSE; if TRUE, MCMC chains for \code{beta_r}'s are saved in \code{dd1}.}
-  \item{dd1}{needed if \code{chain.save=TRUE}; a character string specifying the directory to a local .txt file to save the MCMC chains for \code{beta_r}'s.}
+  \item{seed}{a use-specified random seed. Default is NULL.}
   \item{formula}{a symbolic description of the model to be fit.}
   \item{data}{a data frame containing the variables in the model.}
   \item{\dots}{values passed to other functions.}
@@ -57,15 +55,17 @@ For "case2probit" model, regression coefficient vector \code{beta} is sampled fr
 For more information, please see reference.
 }
 \value{
-an object of class \code{ICBayes} containing at least the following elements:
+an object of class \code{ICBayes} containing the following elements:
  \item{coef}{a vector of regression coefficient estimates}
  \item{coef_ssd}{a vector of sample standard deviations of regression coefficient estimates}
  \item{coef_ci}{credible intervals for regression coefficients}
  \item{LPML}{log pseudo marginal likelihood for model selection, the larger the better}
-If \code{plot_S} is TRUE, also store:
  \item{grids}{the sequance of points where baseline survival functions is estimated}
  \item{S0_m}{estimated baseline survival probabilities at \code{grids}}
- \item{S_m}{estimated survival probabilities at \code{grids} for \code{x_user}}
+ \item{S_m}{a \code{length(grids)*G} by 2 matrix that contains estimated survival probabilities at \code{grids} for \code{x_user}, where G is the number of sets of covariate values}
+ \item{S_ci}{credible intervals for survival probablities at \code{grids} for \code{x_user}}
+ \item{mcmc_beta}{a \code{niter} by p matrix of mcmc chains for regression coefficients, where niter is the number of iterations and p is the number of covariates}
+ \item{mcmc_surv}{a \code{niter} by \code{length{grids}*G} matrix of mcmc chains for survival probabilities at \code{grids}, where niter is the number of iterations and G is the number of sets of covariate values}
 }
 \author{Chun Pan}
 \references{

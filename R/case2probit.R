@@ -10,9 +10,12 @@ a_eta,
 b_eta,
 knots,
 grids,
-niter){
+niter,
+seed){
 
-#library(HI)
+# library(HI) # remove as specified in Depend
+# library(coda) # remove as specified in Depend
+
 
 Ispline<-function(x,order,knots){
 # M Spline function with order k=order+1. or I spline with order
@@ -67,7 +70,7 @@ if (order==1){
 return(yy)
 }
 
-
+   set.seed(seed)
    L=matrix(L,ncol=1)
    R=matrix(R,ncol=1)
    R2=ifelse(is.na(R),0,R)
@@ -197,27 +200,27 @@ return(yy)
       parbeta[iter,]=t(beta)
       parsurv0[iter,]=1-pnorm(alphag)
       if (is.null(x_user)){parsurv[iter,]=parsurv0[iter,]} else {
-A<-matrix(x_user,byrow=TRUE,ncol=p)
-B<-A%*%beta                 
-for (g in 1:G){
+      A<-matrix(x_user,byrow=TRUE,ncol=p)
+      B<-A%*%beta                 
+      for (g in 1:G){
       parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=1-pnorm(alphag+B[g,1])}
-}
+      }
 
-#calculate finv
-Fu<-pnorm(alphau+xcov%*%beta)   # n*1
-Fv<-pnorm(alphav+xcov%*%beta)   # n*1 
-f_iter<-(Fu^(status==0))*((Fv-Fu)^(status==1))*((1-Fv)^(status==2)) # n*1, individual likelihood for each iteration
-finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
+      #calculate finv
+      Fu<-pnorm(alphau+xcov%*%beta)   # n*1
+      Fv<-pnorm(alphav+xcov%*%beta)   # n*1 
+      f_iter<-(Fu^(status==0))*((Fv-Fu)^(status==1))*((1-Fv)^(status==2)) # n*1, individual likelihood for each iteration
+      finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
 
-parfinv[iter,]=finv_iter
+      parfinv[iter,]=finv_iter
 
       iter=iter+1
    } # end iteration
 
    est<-list(parbeta=parbeta,
-   parsurv0=parsurv0,
-   parsurv=parsurv,
-   parfinv=parfinv,
-   grids=grids)
+ parsurv0=parsurv0,
+ parsurv=parsurv,
+ parfinv=parfinv,
+ grids=grids)
    est
 }

@@ -11,9 +11,12 @@ a_eta,
 b_eta,
 knots,
 grids,
-niter){
+niter,
+seed){
 
-#library(HI)
+# library(HI) # remove as specified in Depend
+# library(coda) # remove as specified in Depend
+
 
 Ispline<-function(x,order,knots){
 # M Spline function with order k=order+1. or I spline with order
@@ -87,6 +90,7 @@ positivepoissonrnd<-function(lambda){
 
 
    ## obtain data
+   set.seed(seed)
    T_obs=matrix(ifelse(status==0,L,R),ncol=1)
    status=matrix(status,ncol=1)
    n=nrow(T_obs)
@@ -156,18 +160,18 @@ positivepoissonrnd<-function(lambda){
       ttt=gamcoef%*%bgs
       parsurv0[iter,]=exp(-ttt)
       if (is.null(x_user)){parsurv[iter,]=parsurv0[iter,]} else {
-A<-matrix(x_user,byrow=TRUE,ncol=p)
-B<-exp(A%*%beta)
-for (g in 1:G){
-   parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=exp(-ttt*B[g,1])}
-}
+      A<-matrix(x_user,byrow=TRUE,ncol=p)
+      B<-exp(A%*%beta)
+      for (g in 1:G){
+      parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=exp(-ttt*B[g,1])}
+      }
 
-#calculate finv
-Ft<-1-exp(-Lambdat*exp(xcov%*%beta))   # n*1
-f_iter<-(Ft^(status==1))*((1-Ft)^(status==0)) # n*1, individual likelihood for each iteration
-finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
+      #calculate finv
+      Ft<-1-exp(-Lambdat*exp(xcov%*%beta))   # n*1
+      f_iter<-(Ft^(status==1))*((1-Ft)^(status==0)) # n*1, individual likelihood for each iteration
+      finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
 
-parfinv[iter,]=finv_iter
+      parfinv[iter,]=finv_iter
 
       iter=iter+1
 

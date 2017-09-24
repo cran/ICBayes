@@ -11,9 +11,12 @@ a_eta,
 b_eta,
 knots,
 grids,
-niter){
+niter,
+seed){
 
-#library(HI)
+# library(HI) # remove as specified in Depend
+# library(coda) # remove as specified in Depend
+ 
 
 Ispline<-function(x,order,knots){
 # M Spline function with order k=order+1. or I spline with order
@@ -85,6 +88,7 @@ beta_fun <- function(x,j,beta,xx,te1,te2,sig0)
 ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
 
 ### main routine ###
+   set.seed(seed)
    L=matrix(L,ncol=1)
    R=matrix(R,ncol=1)
    R2=ifelse(is.na(R),0,R)
@@ -114,7 +118,6 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
    beta=matrix(rep(0,p),ncol=1)
    Lambdatu=t(gamcoef%*%bisu) # n x 1
    Lambdatv=t(gamcoef%*%bisv) # n x 1
-   Lambdatg=t(gamcoef%*%bgs)
 
    parbeta=array(rep(0,niter*p),dim=c(niter,p))
    parsurv0=array(rep(0,niter*kgrids),dim=c(niter,kgrids))
@@ -157,8 +160,8 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
          gamcoef[l]=rgamma(1,tempa,rate=tempb)
       }
       
-      Lambdatu=t(gamcoef%*%bisu) # n x 1
-      Lambdatv=t(gamcoef%*%bisv) # n x 1
+      Lambdatu=t(gamcoef%*%bisu) 
+      Lambdatv=t(gamcoef%*%bisv)
 
       #sample eta
       eta=rgamma(1,a_eta+k, rate=b_eta+sum(gamcoef))
@@ -170,16 +173,16 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
       parsurv0[iter,]=exp(-ttt)
       if (is.null(x_user)){parsurv[iter,]=parsurv0[iter,]} else {
       A<-matrix(x_user,byrow=TRUE,ncol=p)
-B<-exp(A%*%beta)
-for (g in 1:G){
+      B<-exp(A%*%beta)
+      for (g in 1:G){
       parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=exp(-ttt*B[g,1])}
-}
+      }
 
-#calculate finv
-Fu<-1-exp(-Lambdatu*exp(xcov%*%beta))   # n*1
-Fv<-1-exp(-Lambdatv*exp(xcov%*%beta))   # n*1 
-f_iter<-(Fu^(status==0))*((Fv-Fu)^(status==1))*((1-Fv)^(status==2)) # n*1, individual likelihood for each iteration
-finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
+      #calculate finv
+      Fu<-1-exp(-Lambdatu*exp(xcov%*%beta))   # n*1
+      Fv<-1-exp(-Lambdatv*exp(xcov%*%beta))   # n*1 
+      f_iter<-(Fu^(status==0))*((Fv-Fu)^(status==1))*((1-Fv)^(status==2)) # n*1, individual likelihood for each iteration
+      finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
 
       parfinv[iter,]=finv_iter
 
