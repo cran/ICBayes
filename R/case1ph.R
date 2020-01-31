@@ -71,6 +71,36 @@ if (order==1){
 return(yy)
 }
 
+
+### get Mspline bases ###
+Mspline<-function(x,order,knots){
+
+k1=order
+m=length(knots)
+n1=m-2+k1 # number of parameters
+t1=c(rep(1,k1)*knots[1], knots[2:(m-1)], rep(1,k1)*knots[m]) # new knots
+
+tem1=array(rep(0,(n1+k1-1)*length(x)),dim=c(n1+k1-1, length(x)))
+for (l in k1:n1){
+    tem1[l,]=(x>=t1[l] & x<t1[l+1])/(t1[l+1]-t1[l])
+}
+
+if (order==1){
+   mbases=tem1
+}else{
+   mbases=tem1
+   for (ii in 1:(order-1)){
+      tem=array(rep(0,(n1+k1-1-ii)*length(x)),dim=c(n1+k1-1-ii, length(x)))
+      for (i in (k1-ii):n1){
+         tem[i,]=(ii+1)*((x-t1[i])*mbases[i,]+(t1[i+ii+1]-x)*mbases[i+1,])/(t1[i+ii+1]-t1[i])/ii
+      }
+      mbases=tem
+   }
+}
+return(mbases)
+}
+
+
 positivepoissonrnd<-function(lambda){ 
    samp = rpois(1, lambda)
    while (samp==0) {
@@ -106,6 +136,7 @@ positivepoissonrnd<-function(lambda){
    ## generate basis functions
    bis=Ispline(t(T_obs),order,knots) # used as basis functions in order to do parameter estimation
    bgs=Ispline(grids,order,knots)
+   bmsg=Mspline(grids,order,knots)
 
    eta=rgamma(1,a_eta,rate=b_eta)
    
@@ -113,8 +144,11 @@ positivepoissonrnd<-function(lambda){
    gamcoef=matrix(rgamma(k, 1, 1),ncol=k)
    beta=matrix(rep(0,p),ncol=1)
    Lambdat=t(gamcoef%*%bis) 
+   lambdatg=t(gamcoef%*%bmsg) # lambda0 at each grid value
 
    parbeta=array(rep(0,niter*p),dim=c(niter,p))
+   parhaz0=array(rep(0,niter*kgrids),dim=c(niter,kgrids))
+   parhaz=array(rep(0,niter*kgrids*G),dim=c(niter,kgrids*G))
    parsurv0=array(rep(0,niter*kgrids),dim=c(niter,kgrids))
    parsurv=array(rep(0,niter*kgrids*G),dim=c(niter,kgrids*G))
    pargam=array(rep(0,niter*k),dim=c(niter,k))
@@ -136,16 +170,6 @@ positivepoissonrnd<-function(lambda){
          }
       }
 
-      # sample gamcoef
-      for (l in 1:k){
-         tempa=1+sum(zz[,l]*(bis[l,]>0))
-         tempb=eta+bis[l,]%*%exp(xcov%*%beta)
-         gamcoef[l]=rgamma(1,tempa,rate=tempb)
-      }
-      Lambdat=t(gamcoef%*%bis) # n x 1
-
-      #sample eta
-      eta=rgamma(1,a_eta+k, rate=b_eta+sum(gamcoef))
 
      # sample beta
       for (l in 1:p){
@@ -153,6 +177,20 @@ positivepoissonrnd<-function(lambda){
          pb<-beta[-l]
          beta[l]<-arms(beta[l],beta_fun,ind_fun,1,pb=pb,xx=xx,zz=z,lam=Lambdat,sig0=sig0)
       }
+
+      # sample gamcoef
+      for (l in 1:k){
+         tempa=1+sum(zz[,l]*(bis[l,]>0))
+         tempb=eta+bis[l,]%*%exp(xcov%*%beta)
+         gamcoef[l]=rgamma(1,tempa,rate=tempb)
+      }
+
+      Lambdat=t(gamcoef%*%bis) # n x 1
+      lambdatg=t(gamcoef%*%bmsg) # n x kgrids
+
+      #sample eta
+      eta=rgamma(1,a_eta+k, rate=b_eta+sum(gamcoef))
+
 
       pargam[iter,]=gamcoef
       parbeta[iter,]=beta
@@ -164,6 +202,13 @@ positivepoissonrnd<-function(lambda){
       B<-exp(A%*%beta)
       for (g in 1:G){
       parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=exp(-ttt*B[g,1])}
+      }
+      parhaz0[iter,]=gamcoef%*%bmsg
+      if (is.null(x_user)){parhaz[iter,]=parhaz0[iter,]} else {
+      A<-matrix(x_user,byrow=TRUE,ncol=p)
+      B<-exp(A%*%beta)
+      for (g in 1:G){
+      parhaz[iter,((g-1)*kgrids+1):(g*kgrids)]=(gamcoef%*%bmsg)*B[g,1]}
       }
 
       #calculate finv
@@ -180,6 +225,8 @@ positivepoissonrnd<-function(lambda){
    est<-list(parbeta=parbeta,
    parsurv0=parsurv0,
    parsurv=parsurv,
+   parhaz0=parhaz0,
+   parhaz=parhaz,
    parfinv=parfinv,
    grids=grids)
    est

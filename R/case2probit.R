@@ -5,6 +5,7 @@ status,
 xcov,
 x_user,
 order,
+m0,
 v0,
 a_eta,
 b_eta,
@@ -12,10 +13,6 @@ knots,
 grids,
 niter,
 seed){
-
-# library(HI) # remove as specified in Depend
-# library(coda) # remove as specified in Depend
-
 
 Ispline<-function(x,order,knots){
 # M Spline function with order k=order+1. or I spline with order
@@ -70,6 +67,7 @@ if (order==1){
 return(yy)
 }
 
+
    set.seed(seed)
    L=matrix(L,ncol=1)
    R=matrix(R,ncol=1)
@@ -78,23 +76,16 @@ return(yy)
    n=nrow(L)
    xcov=as.matrix(xcov)
    p=ncol(xcov)
-   err=1e-10
    u<-L*(status==1)+R2*(status==0)             
    v<-L*(status==2)+R2*(status==1)             
    obs=cbind(u,v)
+   err=1e-10
 
-   if (is.null(knots)) {knots<-seq(min(obs),max(obs),length=100)}
-   if (is.null(grids)) {grids<-seq(min(obs),max(obs),length=10)}
+   if (is.null(knots)) {knots<-seq(min(c(L,R),na.rm=T),max(c(L,R),na.rm=T),length=10)}
+   if (is.null(grids)) {grids<-seq(min(c(L,R),na.rm=T),max(c(L,R),na.rm=T),length=100)}
    kgrids=length(grids)
    k=length(knots)-2+order
    G<-length(x_user)/p
-
-   # initial values
-   varbeta0=t(xcov)%*%xcov
-   varbeta0inv=solve(varbeta0)
-   Sigmabeta0=n*varbeta0inv
-   invSigmabeta0=varbeta0/n
-   intbeta0=matrix(rep(0,p),ncol=1)
 
    tt=obs[,1]*(status<=1)+obs[,2]*(status==2)
    bis=Ispline(t(tt),order,knots) # used as basis functions in order to do parameter estimation
@@ -105,13 +96,16 @@ return(yy)
    bgs=Ispline(grids,order,knots)
 
    ## initial values
+   varbeta0=t(xcov)%*%xcov
+   invSigmabeta0=varbeta0/n
+   intbeta0=matrix(rep(0,p),ncol=1)
    eta=1
-   m0=0
-   gammapar=matrix(rep(1,k)/2,ncol=k); gamma0=-2;
-   beta=matrix(rep(1,p),ncol=1) 
-   Sigma0=diag(5,p) 
-   invSigma0=solve(Sigma0)
+   gamma0=-2
+   gammapar=matrix(rep(1,k)/2,ncol=k)
+   beta0=beta=matrix(rep(0,p),ncol=1) 
 
+   z=matrix(rep(0,n),ncol=1) # z=w_{i1} if y_i<=1 and w_{i2} if y_i=2. This definition matches the definition of t. 
+  
    pareta=array(rep(0,niter),dim=c(niter,1))
    parsurv0=array(rep(0,niter*kgrids),dim=c(niter,kgrids))
    parsurv=array(rep(0,niter*kgrids*G),dim=c(niter,kgrids*G))
@@ -119,8 +113,6 @@ return(yy)
    pargamma=array(rep(0,niter*k),dim=c(niter,k))
    parbeta=array(rep(0,niter*p),dim=c(niter,p))
    parfinv=array(rep(0,niter*n),dim=c(niter,n))
-
-   z=matrix(rep(0,n),ncol=1) # z=w_{i1} if y_i<=1 and w_{i2} if y_i=2. This definition matches the definition of t. 
 
    alphat=gamma0+t(gammapar%*%bis)
    alphau=gamma0+t(gammapar%*%bisu) # n x 1
@@ -149,14 +141,29 @@ return(yy)
          }
       }
 
-      # sample gamma0 
+      # sample gamma0  
       tempw0=1/(v0+n)
       tempe0=tempw0*(v0*m0+ sum(z-t(gammapar%*%bis)-xcov%*%beta))
       gamma0=tempe0+rnorm(1)*sqrt(tempw0)
 
       zy1=z[status==1]; alphauy1=alphau[status==1]; alphavy1=alphav[status==1];
 
-      # sample gamma's
+      # sample gamma's	
+	if (sum(status==1)==0){
+
+	for (l in 1:k){
+	if (sum(bis[l,]^2)==0){
+	gammapar[l]=-log(runif(1))/eta
+	} else {
+	tempb=1/(sum(bis[l,]^2))
+      tempa=tempb*(bis[l,]%*%(z-gamma0-xcov%*%beta-t(gammapar[-l]%*%bis[-l,]))-eta)
+      tempp1=pnorm(0, tempa, sqrt(tempb))
+	temppp=min(1-err,tempp1+runif(1)*(1-tempp1))
+      gammapar[l]=max(tempa+sqrt(tempb)*qnorm(temppp),0)}	
+	}
+
+      } else {
+
       for (l in 1:k){
          tempindex=(bisvy1[l,]-bisuy1[l,]>0)
          if (sum(tempindex)>0){ #if sum(tempindex)=0, the likelihood does not contain gamma_l.
@@ -176,10 +183,10 @@ return(yy)
                gammapar[l]=max(tempa+sqrt(tempb)*qnorm(tempuu),0)
             }
          }else{ 
-            gammapar[l]=-log(runif(1))/eta
-         }
+            gammapar[l]=-log(runif(1))/eta}
       }
-
+	}
+     
       alphat=gamma0+t(gammapar%*%bis)
       alphau=gamma0+t(gammapar%*%bisu) 
       alphav=gamma0+t(gammapar%*%bisv) 
@@ -190,7 +197,7 @@ return(yy)
       tempbetam=tempsig%*%(invSigmabeta0%*%intbeta0+t(xcov)%*%(z-alphat))
       beta=t(chol(tempsig))%*%matrix(rnorm(p),ncol=1)+tempbetam
 
-      # sample eta
+      ## sample eta
       eta=rgamma(1, a_eta+k, rate=b_eta+sum(gammapar))
 
       # record parameters
@@ -215,12 +222,15 @@ return(yy)
       parfinv[iter,]=finv_iter
 
       iter=iter+1
+
    } # end iteration
 
    est<-list(parbeta=parbeta,
- parsurv0=parsurv0,
- parsurv=parsurv,
- parfinv=parfinv,
- grids=grids)
+   parsurv0=parsurv0,
+   parsurv=parsurv,
+   parfinv=parfinv,
+   grids=grids)
    est
 }
+
+

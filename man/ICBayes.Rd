@@ -9,7 +9,7 @@ Give point estimates and credible intervals for regression coefficients and esti
 ICBayes(L, ...)
 
 \method{ICBayes}{default}(L, R, model, status, xcov, x_user=NULL, order=2, 
-sig0=10, coef_range=5, v0=0.1, a_eta=1, b_eta=1, 
+sig0=10, coef_range=5, m0=0, v0=0.1, a_eta=1, b_eta=1, 
 knots=NULL, grids=NULL, conf.int=0.95,
 niter=5000, burnin=1000, thin=1, seed=NULL, ...)
 \method{ICBayes}{formula}(formula, data, ...)
@@ -26,13 +26,14 @@ niter=5000, burnin=1000, thin=1, seed=NULL, ...)
               Used if \code{model}="case1ph", "case1po", or "case2ph". Default is 10.}
   \item{coef_range}{specify support domain of target density for \code{beta_r} using \code{\link[HI]{arms}} (see details). 
         Used if \code{model}="case1ph", "case1po", or "case2ph". Default is 5.}
+  \item{m0}{mean of normal prior for \code{gamma_0}. Default is 0.}
   \item{v0}{precision of normal prior for \code{gamma_0}. Used if \code{model}="case2po" or "case2probit". Default is 0.1.}
   \item{a_eta}{shape parameter of Gamma prior for \code{gamma_l} (see details). Default is 1.}
   \item{b_eta}{rate parameter of Gamma prior for \code{gamma_l} (see details). Default is 1.}
   \item{knots}{a sequence of points to define I-splines. Default is a sequence of time points from min to max with length=10.}
   \item{grids}{a sequence of points where survival function is to be estimated. Defalult is a sequence of time points from min to max with length=100.}
   \item{conf.int}{level for a two-sided credible interval on coefficient estimate(s). Default is 0.95.}
-  \item{niter}{total number of iterations of MCMC chains. Default is 11000.}
+  \item{niter}{total number of iterations of MCMC chains. Default is 5000.}
   \item{burnin}{number of iterations to discard at the beginning of an MCMC run. Default is 1000.}
   \item{thin}{specify thinning of MCMC draws. Default is 1.}
   \item{seed}{a use-specified random seed. Default is NULL.}
@@ -61,6 +62,9 @@ an object of class \code{ICBayes} containing the following elements:
  \item{coef_ci}{credible intervals for regression coefficients}
  \item{LPML}{log pseudo marginal likelihood for model selection, the larger the better}
  \item{grids}{the sequance of points where baseline survival functions is estimated}
+ \item{h0_m}{estimated baseline hazard at \code{grids}}
+ \item{h_m}{a \code{length(grids)*G} by 2 matrix that contains estimated hazard at \code{grids} for \code{x_user}, where G is the number of sets of covariate values}
+ \item{h_ci}{credible intervals for hazard function at \code{grids} for \code{x_user}}
  \item{S0_m}{estimated baseline survival probabilities at \code{grids}}
  \item{S_m}{a \code{length(grids)*G} by 2 matrix that contains estimated survival probabilities at \code{grids} for \code{x_user}, where G is the number of sets of covariate values}
  \item{S_ci}{credible intervals for survival probablities at \code{grids} for \code{x_user}}
@@ -87,11 +91,11 @@ data(bcdata)
 bcdata<-data.frame(bcdata) # must be a data frame
 try<-ICBayes(Surv(L,R,type='interval2')~x1,data=bcdata,
 model='case2ph',status=bcdata[,3],x_user=c(0,1),knots=seq(0.1,60.1,length=10),
-grids=seq(0.1,60.1,by=1),niter=500,burnin=100)
+grids=seq(0.1,60.1,by=1),coef.int=0.95,niter=500,burnin=100,seed=20161224)
 # general form
 try2<-ICBayes(model='case2ph',L=bcdata[,1],R=bcdata[,2],status=bcdata[,3],
 xcov=bcdata[,4],x_user=c(0,1),knots=seq(0.1,60.1,length=10),
-grids=seq(0.1,60.1,by=1),niter=500,burnin=100)
+grids=seq(0.1,60.1,by=1),coef.int=0.95,niter=500,burnin=100,seed=20161224)
 }
 \seealso{\code{\link{case1ph}}, \code{\link{case1po}}, \code{\link{case2ph}}, \code{\link{case2probit}}}
 \keyword{case 1 interval-censored data}

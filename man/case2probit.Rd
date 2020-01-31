@@ -4,7 +4,7 @@
 \description{Fit probit model to general interval-censored data. Use MCMC method to estimate regression coefficients, baseline survival, 
 and survival function at user-specified covariate values.}
 \usage{
-case2probit(L, R, status, xcov, x_user, order,
+case2probit(L, R, status, xcov, x_user, order, m0,
 	    v0, a_eta, b_eta, knots, grids, niter, seed)
 }
 \arguments{
@@ -14,6 +14,7 @@ case2probit(L, R, status, xcov, x_user, order,
   \item{xcov}{a matrix of covariates, each column corresponds to one covariate.}
   \item{x_user}{a vector of user specified covariate values.}
   \item{order}{degree of I-splines (\code{b_l}) (see details). Recommended values are 2-4.} 
+  \item{m0}{mean of normal prior for \code{gamma_0}.}
   \item{v0}{precision of normal prior for \code{gamma_0}.}
   \item{a_eta}{shape parameter of Gamma prior for \code{gamma_l} (see details).}
   \item{b_eta}{rate parameter of Gamma prior for \code{gamma_l} (see details).}

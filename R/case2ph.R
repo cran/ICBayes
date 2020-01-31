@@ -71,6 +71,36 @@ if (order==1){
 return(yy)
 }
 
+
+### get Mspline bases ###
+Mspline<-function(x,order,knots){
+
+k1=order
+m=length(knots)
+n1=m-2+k1 # number of parameters
+t1=c(rep(1,k1)*knots[1], knots[2:(m-1)], rep(1,k1)*knots[m]) # new knots
+
+tem1=array(rep(0,(n1+k1-1)*length(x)),dim=c(n1+k1-1, length(x)))
+for (l in k1:n1){
+    tem1[l,]=(x>=t1[l] & x<t1[l+1])/(t1[l+1]-t1[l])
+}
+
+if (order==1){
+   mbases=tem1
+}else{
+   mbases=tem1
+   for (ii in 1:(order-1)){
+      tem=array(rep(0,(n1+k1-1-ii)*length(x)),dim=c(n1+k1-1-ii, length(x)))
+      for (i in (k1-ii):n1){
+         tem[i,]=(ii+1)*((x-t1[i])*mbases[i,]+(t1[i+ii+1]-x)*mbases[i+1,])/(t1[i+ii+1]-t1[i])/ii
+      }
+      mbases=tem
+   }
+}
+return(mbases)
+}
+
+
 positivepoissonrnd<-function(lambda){ 
    samp = rpois(1, lambda)
    while (samp==0) {
@@ -96,32 +126,33 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
    p=ncol(xcov)
    status=matrix(status,ncol=1)
    n=nrow(L)
-   u<-L*as.numeric(status==1)+R2*as.numeric(status==0)             
-   v<-L*as.numeric(status==2)+R2*as.numeric(status==1)   
-   obs=cbind(u,v)
 
    ## generate basis functions
-   if (is.null(knots)) {knots<-seq(min(obs),max(obs),length=10)}
+   if (is.null(knots)) {knots<-seq(min(c(L,R2)),max(c(L,R2)),length=10)}
    k=length(knots)-2+order
-   if (is.null(grids)) {grids<-seq(min(obs),max(obs),length=100)}
+   if (is.null(grids)) {grids<-seq(min(c(L,R2)),max(c(L,R2)),length=100)}
    kgrids=length(grids)
    G<-length(x_user)/p     # number of survival curves
 
-   bisu=Ispline(t(obs[,1]),order,knots)
-   bisv=Ispline(t(obs[,2]),order,knots)
+   bisL=Ispline(L,order,knots)
+   bisR=Ispline(R2,order,knots)
    bgs=Ispline(grids,order,knots)
+   bmsg=Mspline(grids,order,knots)
 
    eta=rgamma(1,a_eta,rate=b_eta)
 
    ## initial value
    gamcoef=matrix(rgamma(k, 1, 1),ncol=k)
    beta=matrix(rep(0,p),ncol=1)
-   Lambdatu=t(gamcoef%*%bisu) # n x 1
-   Lambdatv=t(gamcoef%*%bisv) # n x 1
+   LambdatL=t(gamcoef%*%bisL) # n x 1
+   LambdatR=t(gamcoef%*%bisR) # n x 1
+   lambdatg=t(gamcoef%*%bmsg) # lambda0 at each grid value
 
    parbeta=array(rep(0,niter*p),dim=c(niter,p))
    parsurv0=array(rep(0,niter*kgrids),dim=c(niter,kgrids))
    parsurv=array(rep(0,niter*kgrids*G),dim=c(niter,kgrids*G))
+   parhaz0=array(rep(0,niter*kgrids),dim=c(niter,kgrids))
+   parhaz=array(rep(0,niter*kgrids*G),dim=c(niter,kgrids*G))
    pargam=array(rep(0,niter*k),dim=c(niter,k))
    pareta=array(rep(0,niter),dim=c(niter,1)) 
    parfinv=array(rep(0,niter*n),dim=c(niter,n))
@@ -136,32 +167,33 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
 
       for (i in 1:n){
          if (status[i]==0){
-            templam1=Lambdatu[i]*exp(xcov[i,]%*%beta)
+            templam1=LambdatR[i]*exp(xcov[i,]%*%beta)
             z[i]=positivepoissonrnd(templam1)
-            zz[i,]=rmultinom(1,z[i],gamcoef*t(bisu[,i]))
+            zz[i,]=rmultinom(1,z[i],gamcoef*t(bisR[,i]))
          }else if (status[i]==1){
-            templam1=(Lambdatv[i]-Lambdatu[i])*exp(xcov[i,]%*%beta)
+            templam1=(LambdatR[i]-LambdatL[i])*exp(xcov[i,]%*%beta)
             w[i]=positivepoissonrnd(templam1)
-            ww[i,]=rmultinom(1,w[i],gamcoef*t(bisv[,i]-bisu[,i]))
+            ww[i,]=rmultinom(1,w[i],gamcoef*t(bisR[,i]-bisL[,i]))
          }
       }
 
       # sample beta
       te1=z*as.numeric(status==0)+w*as.numeric(status==1)
-      te2=(Lambdatu*as.numeric(status==0)+Lambdatv*as.numeric(status==1)+Lambdatv*as.numeric(status==2))
+      te2=(LambdatR*as.numeric(status==0)+LambdatR*as.numeric(status==1)+LambdatL*as.numeric(status==2))
       for (j in 1:p){
          beta[j]<-arms(beta[j],beta_fun,ind_fun,1,j=j,beta=beta,xx=xcov,te1=te1,te2=te2,sig0=sig0)
       }
 
       # sample gamcoef
       for (l in 1:k){
-         tempa=1+sum(zz[,l]*as.numeric(status==0)*(bisu[l,]>0)+ww[,l]*as.numeric(status==1)*((bisv[l,]-bisu[l,])>0))
-         tempb=eta+sum((bisu[l,]*as.numeric(status==0)+bisv[l,]*as.numeric(status==1)+bisv[l,]*as.numeric(status==2))*exp(xcov%*%beta)) 
+         tempa=1+sum(zz[,l]*as.numeric(status==0)*(bisR[l,]>0)+ww[,l]*as.numeric(status==1)*((bisR[l,]-bisL[l,])>0))
+         tempb=eta+sum((bisR[l,]*as.numeric(status==0)+bisR[l,]*as.numeric(status==1)+bisL[l,]*as.numeric(status==2))*exp(xcov%*%beta)) 
          gamcoef[l]=rgamma(1,tempa,rate=tempb)
       }
       
-      Lambdatu=t(gamcoef%*%bisu) 
-      Lambdatv=t(gamcoef%*%bisv)
+      LambdatL=t(gamcoef%*%bisL) 
+      LambdatR=t(gamcoef%*%bisR)
+      lambdatg=t(gamcoef%*%bmsg)
 
       #sample eta
       eta=rgamma(1,a_eta+k, rate=b_eta+sum(gamcoef))
@@ -177,11 +209,18 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
       for (g in 1:G){
       parsurv[iter,((g-1)*kgrids+1):(g*kgrids)]=exp(-ttt*B[g,1])}
       }
+      parhaz0[iter,]=gamcoef%*%bmsg
+      if (is.null(x_user)){parhaz[iter,]=parhaz0[iter,]} else {
+      A<-matrix(x_user,byrow=TRUE,ncol=p)
+      B<-exp(A%*%beta)
+      for (g in 1:G){
+      parhaz[iter,((g-1)*kgrids+1):(g*kgrids)]=(gamcoef%*%bmsg)*B[g,1]}
+      }
 
       #calculate finv
-      Fu<-1-exp(-Lambdatu*exp(xcov%*%beta))   # n*1
-      Fv<-1-exp(-Lambdatv*exp(xcov%*%beta))   # n*1 
-      f_iter<-(Fu^(status==0))*((Fv-Fu)^(status==1))*((1-Fv)^(status==2)) # n*1, individual likelihood for each iteration
+      FL<-1-exp(-LambdatL*exp(xcov%*%beta))   # n*1
+      FR<-1-exp(-LambdatR*exp(xcov%*%beta))   # n*1 
+      f_iter<-(FR^(status==0))*((FR-FL)^(status==1))*((1-FL)^(status==2)) # n*1, individual likelihood for each iteration
       finv_iter<-1/f_iter            # n*1, inverse of individual likelihood for each iteration
 
       parfinv[iter,]=finv_iter
@@ -192,6 +231,8 @@ ind_fun <- function(x,j,beta,xx,te1,te2,sig0) (x>-coef_range)*(x<coef_range)
    est<-list(parbeta=parbeta,
    parsurv0=parsurv0,
    parsurv=parsurv,
+   parhaz0=parhaz0,
+   parhaz=parhaz,
    parfinv=parfinv,
    grids=grids)
    est

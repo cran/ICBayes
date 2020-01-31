@@ -1,13 +1,20 @@
 summary.ICBayes <-
 function(object, ...){
+
+   coef.table<-cbind(object$coef, object$coef_ssd, object$coef_ci[,1], object$coef_ci[,2])
+   dimnames(coef.table)<-list(names(object$coef),
+			      c('Mean','Std. Dev.',
+				paste(object$conf.int*100,'%CI-Low',sep=''),
+				paste(object$conf.int*100,'%CI-Upp',sep='')))
    cat("Call:\n")
    print(object$call)
-   cat("\ncoef #Estimted regression coefficients\n")
-   print(object$coef)
-   cat("\ncoef_ssd #Sample standard deviation\n")
-   print(object$coef_ssd)
-   cat("\ncoef_ci #Credible interval of coefficients\n")
-   print(object$coef_ci)
-   cat("\nLPML #Log pseudo marginal likelihood\n")
-   print(object$LPML)
+
+   cat("\nPosterior inference of regression coefficients\n")
+   print.default(coef.table)
+
+
+   cat("\nLog pseudo marginal likelihood: LPML=", object$LPML, sep="")
+   cat("\nNegative log-likelihood: NLLK=", -object$LPML, sep="")
+   cat("\nNumber of subjects: n=", object$n, "\n", sep="")
+
 }
